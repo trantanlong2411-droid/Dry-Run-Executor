@@ -101,7 +101,11 @@ test('failed eth_estimateGas blocks unsigned transaction',async()=>{
   if(n==='eth_estimateGas')throw Error('gas estimation unavailable');
   return m.rpc(n,p);
  });
- assert.equal(r.decision,'BLOCKED');assert.equal(r.preparedUnsignedTransaction,null);
+ assert.equal(r.decision,'ERROR_BLOCKED');
+ assert.equal(r.rpcFailureType,'GAS_ESTIMATION_ERROR');
+ assert.equal(r.revertReason,null);
+ assert.equal(r.evmCallSucceeded,true);
+ assert.equal(r.preparedUnsignedTransaction,null);
 });
 test('UI includes success, revert, gas policy and audit export',()=>{
  for(const x of ['id="positive"','id="negative"','id="policy"','id="prepare"','id="export"'])assert.ok(HTML.includes(x));

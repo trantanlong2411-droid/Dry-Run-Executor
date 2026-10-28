@@ -4,6 +4,12 @@ Live demo: https://dry-run-executor.trantanlong2411.workers.dev/
 
 Source: https://github.com/trantanlong2411-droid/Dry-Run-Executor
 
+## Verified live evidence
+
+[Real read-only RPC success / revert / gas-cap test results](./proof/README.md)
+
+GitHub Actions run 40743778145 completed successfully. The live test includes 64,513 gas units on an undoDeposit(1) preview, a blocked deposit(2) with reason INSUFFICIENT_PENDING, and a blocked gas-cap case. There was no broadcast.
+
 ## Overview
 
 This read-only transaction preflight Skill runs on Pharos Atlantic Testnet (chain ID 688689). It uses Ethereum JSON-RPC eth_call, eth_estimateGas, eth_gasPrice and pinned-block contract-state reads to decide whether an unsigned testnet transaction could be prepared safely. It never signs, broadcasts or sends transactions. The app returns a predicted SUCCESS or REVERT and, when available, a decoded Error(string) reason, estimated gas units, estimated cost in PHRS, actual before-state and a clearly labeled projected after-state. Failed calls and gas safety policy violations are automatically BLOCKED.

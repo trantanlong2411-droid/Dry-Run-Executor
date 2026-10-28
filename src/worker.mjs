@@ -63,7 +63,11 @@ export default {
    const result=await simulate(body,rpc);
    return json({ok:true,report:result});
   }catch(e){
-   return json({ok:false,decision:'ERROR_BLOCKED',error:'Simulation unavailable; nothing prepared or sent: '+e.message},400);
+   const limited=e?.code==='RPC_RATE_LIMIT';
+   return json({ok:false,decision:'ERROR_BLOCKED',
+    code:limited?'RATE_LIMIT':'RPC_UNAVAILABLE',
+    retryAfterSeconds:limited?e.retryAfterSeconds:null,
+    error:'Simulation unavailable; nothing prepared or sent: '+e.message},limited?429:400);
   }
  }
 };

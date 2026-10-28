@@ -74,6 +74,8 @@ test('revert decodes Error(string), blocks without fabricating gas costs',async(
  const r=await simulate({...SAMPLE,method:'deposit',amount:'2'},m.rpc);
  assert.equal(r.decision,'BLOCKED');
  assert.equal(r.revertReason,'INSUFFICIENT_PENDING');
+ assert.equal(r.evmCallSucceeded,false);
+ assert.equal(r.rpcFailureType,'EVM_REVERT');
  assert.equal(r.afterProjected,null);
  assert.equal(r.gasEstimateUnits,null);
  assert.equal(r.preparedUnsignedTransaction,null);
@@ -109,4 +111,42 @@ test('inline browser JavaScript parses',()=>{
  const scripts=[...HTML.matchAll(/<script>([\s\S]*?)<\/script>/g)];
  assert.ok(scripts.length);
  for(const [,s] of scripts)new Script(s);
+});
+test('HTTP 429 during eth_call is NOT mislabeled as EVM revert',async()=>{
+ const m=rpcMock();
+ const rpc=async(name,params)=>{
+  if(name==='eth_call'&&abi.parseTransaction({data:params[0].data})?.name==='undoDeposit'){
+   const e=new Error('Pharos RPC HTTP 429');
+   e.code='RPC_RATE_LIMIT';e.retryAfterSeconds=20;throw e;
+  }
+  return m.rpc(name,params);
+ };
+ const r=await simulate(SAMPLE,rpc);
+ assert.equal(r.decision,'ERROR_BLOCKED');
+ assert.equal(r.rpcFailureType,'RATE_LIMIT');
+ assert.equal(r.evmCallSucceeded,null);
+ assert.equal(r.revertReason,null);
+ assert.equal(r.retryAfterSeconds,20);
+ assert.equal(r.preparedUnsignedTransaction,null);
+});
+test('generic provider failures never invent EVM revert',async()=>{
+ const m=rpcMock();
+ const rpc=async(name,params)=>{
+  if(name==='eth_call'&&abi.parseTransaction({data:params[0].data})?.name==='undoDeposit')throw Error('Provider network timeout');
+  return m.rpc(name,params);
+ };
+ const r=await simulate(SAMPLE,rpc);
+ assert.equal(r.decision,'ERROR_BLOCKED');assert.equal(r.revertReason,null);
+ assert.equal(r.rpcFailureType,'RPC_UNAVAILABLE');
+});
+test('EVM success and safety policy block are distinct',async()=>{
+ const r=await simulate({...SAMPLE,maxGasCostPhrs:'0'},rpcMock().rpc);
+ assert.equal(r.evmCallSucceeded,true);
+ assert.equal(r.decision,'BLOCKED');
+ assert.equal(r.preparedUnsignedTransaction,null);
+});
+test('UI presents RPC errors separately from on-chain reverts',()=>{
+ assert.match(HTML,/RPC UNAVAILABLE/);
+ assert.match(HTML,/nextRpcAllowedAt/);
+ assert.match(HTML,/rpcCooldown/);
 });

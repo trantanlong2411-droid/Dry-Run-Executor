@@ -4,6 +4,10 @@ Live demo: https://dry-run-executor.trantanlong2411.workers.dev/
 
 Source: https://github.com/trantanlong2411-droid/Dry-Run-Executor
 
+## Browser audit and improved RPC error classification
+
+[User-provided five-simulation JSON audit summary](./proof/browser-audit-2026-10-28.md) includes two successful dry-runs, one real EVM revert prediction, one gas-cap block and one Pharos RPC HTTP 429. The last event is an upstream rate limit, **not** an EVM revert. Current code distinguishes RATE_LIMIT / RPC_UNAVAILABLE from EVM_REVERT, displays the RPC error, blocks unsigned preparation and uses a client-side cooldown.
+
 ## Verified live evidence
 
 [Real read-only RPC success / revert / gas-cap test results](./proof/README.md)

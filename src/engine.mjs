@@ -44,7 +44,7 @@ function hexNumber(result,name){
  if(typeof result!=='string'||!/^0x[0-9a-fA-F]+$/.test(result))throw Error('Invalid '+name+' result');
  return BigInt(result);
 }
-function parseRpcError(e){
+function parseRevertError(e){
  const message=String(e?.rpcMessage||e?.message||'Unknown RPC error');
  let data=e?.rpcData;
  if(data&&typeof data==='object')data=data.data||data.originalError?.data;
@@ -56,7 +56,8 @@ function parseRpcError(e){
   }catch{}
  }
  const reason=message.match(/(?:execution reverted|reverted)(?::\s*(.*))?/i);
- return reason?(reason[1]?.trim()||'Execution reverted (no decoded reason returned)'):message.slice(0,300);
+ if(reason)return reason[1]?.trim()||'Execution reverted (no decoded reason returned)';
+ return Number(e?.rpcCode)===3?'Execution reverted (no decoded reason returned)':null;
 }
 const readValue=async(rpc,to,abi,method,args,block)=>{
  const output=await rpc('eth_call',[{to,data:abi.encodeFunctionData(method,args)},block]);
@@ -68,10 +69,11 @@ export async function simulate(raw,rpc){
  const at=new Date().toISOString();
  const chainId=Number(hexNumber(await rpc('eth_chainId'),'chain id'));
  if(chainId!==CHAIN.chainId)throw Error('Wrong chain; expected Pharos Atlantic 688689, got '+chainId);
- const [block,gasPriceHex,code]=await Promise.all([
-  rpc('eth_blockNumber'),rpc('eth_gasPrice'),rpc('eth_getCode',[cfg.contract,'latest'])
+ const [block,gasPriceHex]=await Promise.all([
+  rpc('eth_blockNumber'),rpc('eth_gasPrice')
  ]);
  const blockNum=hexNumber(block,'block number');
+ const code=await rpc('eth_getCode',[cfg.contract,block]);
  const gasPriceWei=hexNumber(gasPriceHex,'gas price');
  if(gasPriceWei===0n)throw Error('Zero gas price from RPC');
  if(typeof code!=='string'||code==='0x')throw Error('SagaPlayground contract has no deployed code');
@@ -99,24 +101,39 @@ export async function simulate(raw,rpc){
   gasEstimateUnits:null,recommendedGasLimit:null,estimatedGasCostPhrs:null,
   maxPossibleGasCostPhrs:null,revertReason:null,
   input:{amount:cfg.amount,maxGasUnits:cfg.maxGasUnits,maxGasCostPhrs:cfg.maxGasCostPhrs,gasBufferBps:cfg.gasBufferBps},
-  decision:'BLOCKED',successPredicted:false,reason:'',
+  decision:'BLOCKED',successPredicted:false,evmCallSucceeded:null,reason:'',
+  rpcFailureType:null,rpcErrorMessage:null,retryAfterSeconds:null,
   preparedUnsignedTransaction:null
  };
  // Contract-state projection is conditional on a passing EVM simulation.
  try{
   await rpc('eth_call',[tx,block]);
  }catch(e){
-  report.revertReason=parseRpcError(e);
-  report.reason='EVM eth_call failed (revert or RPC error); execution blocked. No gas estimate is claimed.';
-  report.rpcFailureType=e?.code==='RPC_PROVIDER_ERROR'?'RPC_ERROR':'CALL_ERROR';
+  const revert=parseRevertError(e);
+  report.evmCallSucceeded=revert?false:null;
+  if(revert){
+   report.decision='BLOCKED';report.revertReason=revert;report.rpcFailureType='EVM_REVERT';
+   report.reason='EVM eth_call reverted at the pinned block; transaction preparation blocked. No successful gas estimate is claimed.';
+  }else{
+   report.decision='ERROR_BLOCKED';
+   report.rpcFailureType=e?.code==='RPC_RATE_LIMIT'?'RATE_LIMIT':'RPC_UNAVAILABLE';
+   report.rpcErrorMessage=String(e?.message||'RPC unavailable').slice(0,250);
+   report.retryAfterSeconds=e?.retryAfterSeconds??null;
+   report.reason='RPC unavailable; outcome cannot be predicted. Preparation blocked (no transaction sent).';
+  }
   return report;
  }
+ report.evmCallSucceeded=true;
  let gasEstimate;
  try{
   gasEstimate=hexNumber(await rpc('eth_estimateGas',[tx,block]),'gas estimate');
  }catch(e){
-  report.revertReason=parseRpcError(e);
-  report.reason='eth_call passed, but eth_estimateGas failed; fail closed and block execution.';
+  report.revertReason=parseRevertError(e);
+  report.decision='ERROR_BLOCKED';
+  report.rpcFailureType=e?.code==='RPC_RATE_LIMIT'?'RATE_LIMIT':'GAS_ESTIMATION_ERROR';
+  report.rpcErrorMessage=String(e?.message||'Gas estimate unavailable').slice(0,250);
+  report.retryAfterSeconds=e?.retryAfterSeconds??null;
+  report.reason='eth_call passed, but gas estimation is unavailable; unsigned preparation blocked.';
   return report;
  }
  const limit=(gasEstimate*(10000n+BigInt(cfg.gasBufferBps))+9999n)/10000n;

@@ -1,0 +1,66 @@
+{
+  "schema": "pharos-dry-run-user-audit-summary-v1",
+  "source": "User-exported browser JSON from deployed Dry-Run Executor",
+  "originalFilename": "pharos-dry-run-1793211686613.json",
+  "originalSha256": "d6e0b87ac81d265c54b45f734ff6a80064e230e3bddfc73407a580966dc569e5",
+  "exportedAt": "2026-10-28T18:21:26.612Z",
+  "sourceRunCount": 5,
+  "chainId": 688689,
+  "explanation": "This is a derived summary of user-supplied historical browser output. The original unmodified JSON is not committed; GitHub Actions live proofs are independently reproducible.",
+  "totals": {
+    "readyToPrepare": 2,
+    "blocked": 3,
+    "evmRevertPredicted": 1,
+    "gasPolicyBlocked": 1,
+    "upstreamHttp429": 1,
+    "broadcasts": 0
+  },
+  "runs": [
+    {
+      "function": "undoDeposit",
+      "time": "2026-10-28T18:21:15.435Z",
+      "result": "BLOCKED",
+      "failureType": "GAS_POLICY",
+      "gasUnits": "64513",
+      "reason": "Configured maxGasCostPhrs=0"
+    },
+    {
+      "function": "deposit",
+      "time": "2026-10-28T18:21:01.273Z",
+      "result": "BLOCKED",
+      "failureType": "EVM_REVERT",
+      "reason": "INSUFFICIENT_PENDING"
+    },
+    {
+      "function": "undoDeposit",
+      "time": "2026-10-28T18:20:53.058Z",
+      "result": "READY_TO_PREPARE",
+      "gasUnits": "64513",
+      "estimatedGasCostPhrs": "0.00064513",
+      "before": {
+        "pendingTestB": "0",
+        "depositedShares": "1"
+      },
+      "afterProjected": {
+        "pendingTestB": "1",
+        "depositedShares": "0"
+      }
+    },
+    {
+      "function": "undoDeposit",
+      "time": "2026-10-28T18:20:37.547Z",
+      "result": "BLOCKED",
+      "failureType": "RPC_RATE_LIMIT_NOT_EVM_REVERT",
+      "httpStatus": 429,
+      "legacyFileRevertReason": "Pharos RPC HTTP 429"
+    },
+    {
+      "function": "undoDeposit",
+      "time": "2026-10-28T18:20:13.612Z",
+      "result": "READY_TO_PREPARE",
+      "gasUnits": "64513",
+      "estimatedGasCostPhrs": "0.00064513"
+    }
+  ],
+  "noTransactionBroadcast": true
+}
